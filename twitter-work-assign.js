@@ -35,9 +35,34 @@ const validatePassword = password => {
   return password.length > 5
 }
 
+// Create Authentication
+
+const authenticateToken = (request, response, next) => {
+  let jwtToken
+  const authenticatinHeader = request.headers['authorization']
+  if (authenticatinHeader !== undefined) {
+    jwtToken = authenticatinHeader.split('')[1]
+  }
+
+  if (jwtToken === undefined) {
+    response.status(401)
+    response.send('Invalid JWT Token')
+  } else {
+    jwt.verify(jwtToken, 'MY_SECRET_TOKEN', (error, payload) => {
+      if (error) {
+        response.status(401)
+        response.send('Invalid JWT Token')
+      } else {
+        request.username = payload.username
+        next()
+      }
+    })
+  }
+}
+
 // POST Register user API
 
-app.post('/register', async (request, response) => {
+app.post('/register/', async (request, response) => {
   const {username, password, name, gender} = request.body
   const hashedPassword = await bcrypt.hash(password, 10)
   const checkUserNameQuery = `SELECT * FROM user WHERE username = '${username}';`
@@ -75,7 +100,7 @@ app.post('/login/', async (request, response) => {
     response.status(400)
     response.send('Invalid user')
   } else {
-    const isPasswordMatch = await bcrypt.compare(password, db.password)
+    const isPasswordMatch = await bcrypt.compare(password, dbUser.password)
     if (isPasswordMatch === true) {
       const payload = {
         username: username,
