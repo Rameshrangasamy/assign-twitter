@@ -22,7 +22,7 @@ const intialiazeDbAndServer = async () => {
       console.log('Server Running at http://localhost:3000/'),
     )
   } catch (error) {
-    console.log(`DB Error: ${error.message}`)
+    console.log(`DB Error: "${error.message}"`)
     process.exit(1)
   }
 }
@@ -53,7 +53,9 @@ const authenticateToken = (request, response, next) => {
         response.status(401)
         response.send('Invalid JWT Token')
       } else {
-        request.username = payload.username
+        request.payload = payload
+        request.tweetId = tweetId
+        request.tweet = tweet
         next()
       }
     })
@@ -112,4 +114,25 @@ app.post('/login/', async (request, response) => {
       response.send('Invalid password')
     }
   }
+})
+
+// GET tweet API
+
+app.get('/user/tweets/feed/', authenticateToken, async (request, response) => {
+  const {payload} = request
+  const {user_id, name, username, gender} = payload
+
+  const getsFeedtweetQuery = `
+  SELECT 
+  user.username,
+  tweet.tweet,
+  tweet.date_time AS dateTime
+  FROM user INNER JOIN follower ON user.user_id = follower.following_user_id
+  INNER JOIN tweet ON follower.following_user_id = tweet.user_id
+  WHERE follower.follower_user_id = ${user_id}
+  ORDER BY dateTime DESC
+  LIMIT 4;`
+
+  const tweetArray = await db.all(getsFeedtweetQuery)
+  response.send(tweetArray)
 })
