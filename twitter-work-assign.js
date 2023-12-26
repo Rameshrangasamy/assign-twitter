@@ -3,6 +3,7 @@ const {open} = require('sqlite')
 const sqlite3 = require('sqlite3')
 const path = require('path')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 
 const app = express()
 app.use(express.json())
@@ -34,7 +35,7 @@ const validatePassword = password => {
   return password.length > 5
 }
 
-// Register user API
+// POST Register user API
 
 app.post('/register', async (request, response) => {
   const {username, password, name, gender} = request.body
@@ -60,5 +61,30 @@ app.post('/register', async (request, response) => {
   } else {
     response.status(400)
     response.send('User already exists')
+  }
+})
+
+// POST Login user API
+
+app.post('/login/', async (request, response) => {
+  const {username, password} = request.body
+  const checkUsernameQuery = `SELECT * FROM user WHERE username = "${username}";`
+  const dbUser = await db.get(checkUsernameQuery)
+
+  if (dbUser === undefined) {
+    response.status(400)
+    response.send('Invalid user')
+  } else {
+    const isPasswordMatch = await bcrypt.compare(password, db.password)
+    if (isPasswordMatch === true) {
+      const payload = {
+        username: username,
+      }
+      const jwtToken = jwt.sign(payload, 'MY_SECRET_TOKEN')
+      response.send({jwtToken})
+    } else {
+      response.status(400)
+      response.send('Invalid password')
+    }
   }
 })
