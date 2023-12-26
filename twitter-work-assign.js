@@ -38,8 +38,10 @@ const validatePassword = password => {
 // Create Authentication
 
 const authenticateToken = (request, response, next) => {
+  const {tweet} = request.body
+  const {tweetId} = request.params
   let jwtToken
-  const authenticatinHeader = request.headers['authorization']
+  const authenticatinHeader = request.headers['Authorization']
   if (authenticatinHeader !== undefined) {
     jwtToken = authenticatinHeader.split('')[1]
   }
@@ -120,19 +122,52 @@ app.post('/login/', async (request, response) => {
 
 app.get('/user/tweets/feed/', authenticateToken, async (request, response) => {
   const {payload} = request
-  const {user_id, name, username, gender} = payload
+  const {user_id} = payload
 
   const getsFeedtweetQuery = `
   SELECT 
-  user.username,
-  tweet.tweet,
-  tweet.date_time AS dateTime
-  FROM user INNER JOIN follower ON user.user_id = follower.following_user_id
-  INNER JOIN tweet ON follower.following_user_id = tweet.user_id
+  username,
+  tweet,
+  date_time AS dateTime
+  FROM follower INNER JOIN tweet ON follower.following_user_id = tweet.user_id 
+  INNER JOIN user ON user.user_id = follower.following_user_id
   WHERE follower.follower_user_id = ${user_id}
-  ORDER BY dateTime DESC
+  ORDER BY date_time DESC
   LIMIT 4;`
 
   const tweetArray = await db.all(getsFeedtweetQuery)
   response.send(tweetArray)
+})
+
+// GET following user API
+
+app.get('/user/following/', authenticateToken, async (request, response) => {
+  const {payload} = request
+  const {user_id, name} = payload
+  const userFollowingQuery = `
+        SELECT 
+            name
+        FROM 
+            user INNER JOIN follower ON user.user_id = follower.following_user_id
+        WHERE 
+            follower.follower_user_id = ${user_id};`
+
+  const userFollowingArray = await db.all(userFollowingQuery)
+  response.send(userFollowingArray)
+})
+
+// GEt user Followers API
+
+app.get('/user/followers/', authenticateToken, async (request, response) => {
+  const {payload} = request
+  const {user_id, name} = payload
+  const userFollowersQuery = `
+        SELECT 
+            name
+        FROM
+            user INNER JOIN follower ON user.user_id = follower.follower_user_id
+        WHERE 
+            follower.following_user_id = ${user_id};`
+  const userFollowersArray = await db.all(userFollowersQuery)
+  response.send(userFollowersArray)
 })
